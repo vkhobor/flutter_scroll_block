@@ -3,24 +3,8 @@ package com.example.flutter_scroll_block
 import android.accessibilityservice.AccessibilityService
 import android.view.accessibility.AccessibilityEvent
 import android.widget.Toast
-import java.time.LocalTime
-import kotlin.math.max
 
 class ScrollAccessibility : AccessibilityService() {
-    private val appUsageList = mutableListOf<Map<String, Any>>()
-
-    private var appStatus =
-            mapOf("Instagram" to true, "Youtube" to true, "Linkedin" to true, "Snapchat" to true)
-
-    private var isInstagramDisabled = true
-    private var isYoutubeDisabled = true
-    private var isLinkedinDisabled = true
-    private var isSnapchatDisabled = true
-
-    companion object {
-        private const val MIN_VALID_SCROLL_COUNT = 3
-        private const val MIN_VALID_TIME_SPENT = 5
-    }
 
     private var currentIndex = 0
     private var startTime = 0
@@ -33,7 +17,7 @@ class ScrollAccessibility : AccessibilityService() {
     private var appOpenCount = 0
     private var appScrollBlocked = 0
 
-    private val supportedApps = listOf("Instagram", "Youtube", "Linkedin", "Snapchat")
+    private val supportedApps = listOf("com.instagram.android", "Youtube", "Linkedin", "Snapchat")
 
     override fun onServiceConnected() {
         super.onServiceConnected()
@@ -74,23 +58,7 @@ class ScrollAccessibility : AccessibilityService() {
             if (event.eventType == AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED) {
 
                 // Update app status in memory
-                appStatus =
-                        mapOf(
-                                "Instagram" to isInstagramDisabled,
-                                "Youtube" to isYoutubeDisabled,
-                                "Linkedin" to isLinkedinDisabled,
-                                "Snapchat" to isSnapchatDisabled
-                        )
-
-                if (isValidAppUsage()) {
-                    // Calculate App Usage
-                    endTime = LocalTime.now().toSecondOfDay()
-                    appTimeSpent = max(0, endTime - startTime)
-                    appOpenCount++
-
-                    // Save App Usage in DB
-                    saveAppUsage()
-                }
+                // TODO
             }
 
             supportedApps.forEach {
@@ -110,26 +78,13 @@ class ScrollAccessibility : AccessibilityService() {
                                                         AccessibilityEvent
                                                                 .TYPE_WINDOW_STATE_CHANGED)
                         ) {
-                            if (!appStatus[it]!!) {
-                                // Start Scrolling time
-                                if (startTime == 0) {
-                                    startTime = LocalTime.now().toSecondOfDay()
-                                }
-
-                                // Detect single scroll per content
-                                if (currentIndex != event.fromIndex) {
-                                    appScrollCount++
-                                    currentIndex = event.fromIndex
-                                }
-                            } else {
-                                performGlobalAction(GLOBAL_ACTION_BACK)
-                                Toast.makeText(
-                                                this@ScrollAccessibility,
-                                                "Feature Blocked",
-                                                Toast.LENGTH_SHORT
-                                        )
-                                        .show()
-                            }
+                            performGlobalAction(GLOBAL_ACTION_BACK)
+                            Toast.makeText(
+                                            this@ScrollAccessibility,
+                                            "Feature Blocked",
+                                            Toast.LENGTH_SHORT
+                                    )
+                                    .show()
                         }
                     }
                 }
@@ -137,49 +92,15 @@ class ScrollAccessibility : AccessibilityService() {
         }
     }
 
-    private fun isValidAppUsage(): Boolean {
-        val currentTime = LocalTime.now().toSecondOfDay()
-        val isValidTimeSpent = startTime != 0 && ((currentTime - startTime) >= MIN_VALID_TIME_SPENT)
-        val isValidScrollCount = appScrollCount >= MIN_VALID_SCROLL_COUNT
-
-        return appPackageName.isNotEmpty() && (isValidTimeSpent || isValidScrollCount)
-    }
-
-    private fun saveAppUsage() {
-
-        val appUsage =
-                mapOf(
-                        "packageName" to appPackageName,
-                        "scrollCount" to appScrollCount,
-                        "timeSpent" to appTimeSpent,
-                        "appOpenCount" to appOpenCount,
-                        "scrollsBlocked" to appScrollBlocked
-                )
-
-        appUsageList.add(appUsage)
-        resetAppUsage()
-    }
-
     private fun getBlockIdForApp(packageName: String): String {
         val blockIdMap =
                 mapOf(
-                        "Instagram" to "instagram_block_id",
+                        "com.instagram.android" to "clips_ufi_more_button_component",
                         "Youtube" to "youtube_block_id",
                         "Linkedin" to "linkedin_block_id",
                         "Snapchat" to "snapchat_block_id"
                 )
         return blockIdMap[packageName] ?: "default_block_id"
-    }
-
-    private fun resetAppUsage() {
-        appPackageName = ""
-        appScrollCount = 0
-        appTimeSpent = 0
-        appOpenCount = 0
-        appScrollBlocked = 0
-
-        startTime = 0
-        endTime = 0
     }
 
     override fun onInterrupt() {
