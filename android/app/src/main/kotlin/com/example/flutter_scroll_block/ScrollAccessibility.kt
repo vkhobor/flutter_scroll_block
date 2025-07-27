@@ -1,26 +1,20 @@
 package com.example.flutter_scroll_block
 
 import android.accessibilityservice.AccessibilityService
+import android.preference.PreferenceManager
 import android.view.accessibility.AccessibilityEvent
 import android.widget.Toast
 
 class ScrollAccessibility : AccessibilityService() {
 
-    private var currentIndex = 0
-    private var startTime = 0
-    private var endTime = 0
-
-    // App Usage Info
-    private var appPackageName = ""
-    private var appScrollCount = 0
-    private var appTimeSpent = 0
-    private var appOpenCount = 0
-    private var appScrollBlocked = 0
-
-    private val supportedApps = listOf("com.instagram.android", "Youtube", "Linkedin", "Snapchat")
+    private lateinit var settingsStore: SettingsStore
 
     override fun onServiceConnected() {
         super.onServiceConnected()
+
+        val sharedPreferences = PreferenceManager.getDefaultSharedPreferences(this)
+        settingsStore = SettingsStore(sharedPreferences)
+        settingsStore.startListening()
 
         // Create a notification channel (required for Android 8.0+)
         if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
@@ -54,61 +48,36 @@ class ScrollAccessibility : AccessibilityService() {
 
     override fun onAccessibilityEvent(event: AccessibilityEvent?) {
         event?.let {
-            // Detect Window Changes
-            if (event.eventType == AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED) {
+            settingsStore.startListening()
 
-                // Update app status in memory
-                // TODO
+            if (event.eventType != AccessibilityEvent.TYPE_VIEW_SCROLLED) {
+                return
             }
 
-            supportedApps.forEach {
-                if (event.packageName == it) {
-                    appPackageName = it
+            val setting = settingsStore.items[it.packageName]
+            if (setting == null || !setting.enabled) return
 
-                    // Detect targeted content
-                    val viewId = "${it}:id/${getBlockIdForApp(it)}"
-                    val blockContent =
-                            rootInActiveWindow?.findAccessibilityNodeInfosByViewId(viewId)
+            // Detect targeted content
+            val viewId = "${setting.appid}:id/${setting.viewid}"
+            val blockContent = rootInActiveWindow?.findAccessibilityNodeInfosByViewId(viewId)
 
-                    // Detect Scrolling
-                    if (blockContent != null) {
-                        if (blockContent.isNotEmpty() &&
-                                        (event.eventType == AccessibilityEvent.TYPE_VIEW_SCROLLED ||
-                                                event.eventType ==
-                                                        AccessibilityEvent
-                                                                .TYPE_WINDOW_STATE_CHANGED)
-                        ) {
-                            performGlobalAction(GLOBAL_ACTION_BACK)
-                            Toast.makeText(
-                                            this@ScrollAccessibility,
-                                            "Feature Blocked",
-                                            Toast.LENGTH_SHORT
-                                    )
-                                    .show()
-                        }
-                    }
-                }
+            // Detect Scrolling
+            if (blockContent != null && blockContent.isNotEmpty()) {
+                performGlobalAction(GLOBAL_ACTION_BACK)
+                Toast.makeText(this@ScrollAccessibility, "Feature Blocked", Toast.LENGTH_SHORT)
+                        .show()
             }
         }
     }
 
-    private fun getBlockIdForApp(packageName: String): String {
-        val blockIdMap =
-                mapOf(
-                        "com.instagram.android" to "clips_ufi_more_button_component",
-                        "Youtube" to "youtube_block_id",
-                        "Linkedin" to "linkedin_block_id",
-                        "Snapchat" to "snapchat_block_id"
-                )
-        return blockIdMap[packageName] ?: "default_block_id"
-    }
-
     override fun onInterrupt() {
-        stopForeground(true)
+        settingsStore.stopListening()
+        // stopForeground(true)
     }
 
     override fun onDestroy() {
-        super.onDestroy()
+        settingsStore.stopListening()
         stopForeground(true)
+        super.onDestroy()
     }
 }

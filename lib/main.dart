@@ -1,12 +1,13 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_scroll_block/settings_store.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:shared_preferences_android/shared_preferences_android.dart';
 
-class ListItem {
-  String appid;
-  String viewid;
-  bool enabled;
-
-  ListItem({required this.appid, required this.viewid, this.enabled = true});
-}
+const SharedPreferencesAsyncAndroidOptions options =
+    SharedPreferencesAsyncAndroidOptions(
+      backend: SharedPreferencesAndroidBackendLibrary.SharedPreferences,
+      originalSharedPreferencesOptions: AndroidSharedPreferencesStoreOptions(),
+    );
 
 class AddItemScreen extends StatefulWidget {
   final Function(ListItem) onAdd;
@@ -57,49 +58,29 @@ class _AddItemScreenState extends State<AddItemScreen> {
   }
 }
 
-class InMemoryStore {
-  final List<ListItem> _items = [];
-
-  List<ListItem> get items => _items;
-
-  void addItem(ListItem item) {
-    _items.add(item);
-  }
-
-  void updateItem(int index, ListItem updatedItem) {
-    if (index >= 0 && index < _items.length) {
-      _items[index] = updatedItem;
-    }
-  }
-
-  void deleteItem(int index) {
-    if (index >= 0 && index < _items.length) {
-      _items.removeAt(index);
-    }
-  }
-}
-
 void main() {
   runApp(const MainApp());
 }
 
 class ListScreen extends StatefulWidget {
+  final InMemoryStore store;
+
+  ListScreen({required this.store});
+
   @override
   _ListScreenState createState() => _ListScreenState();
 }
 
 class _ListScreenState extends State<ListScreen> {
-  final InMemoryStore store = InMemoryStore();
-
   @override
   void initState() {
     super.initState();
     _initializeData();
   }
 
-  void _initializeData() {
-    store.addItem(ListItem(appid: 'App1', viewid: 'View1', enabled: true));
-    store.addItem(ListItem(appid: 'App2', viewid: 'View2', enabled: false));
+  Future<void> _initializeData() async {
+    await widget.store.init();
+    setState(() {});
   }
 
   @override
@@ -109,17 +90,32 @@ class _ListScreenState extends State<ListScreen> {
 
   Widget _buildListView() {
     return ListView.builder(
-      itemCount: store.items.length,
+      itemCount: widget.store.items.length,
       itemBuilder: (context, index) {
-        final item = store.items[index];
-        return ListTile(
-          title: Text('App ID: ${item.appid}'),
-          subtitle: Text('View ID: ${item.viewid}'),
-          trailing: Switch(
-            value: item.enabled,
-            onChanged: (value) {
-              setState(() {
-                store.updateItem(
+        final item = widget.store.items[index];
+        return Dismissible(
+          key: Key(item.appid),
+          direction: DismissDirection.endToStart,
+          onDismissed: (direction) async {
+            await widget.store.deleteItem(index);
+            setState(() {});
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text('Item ${item.appid} deleted')),
+            );
+          },
+          background: Container(
+            color: Colors.red,
+            alignment: Alignment.centerRight,
+            padding: const EdgeInsets.symmetric(horizontal: 20),
+            child: const Icon(Icons.delete, color: Colors.white),
+          ),
+          child: ListTile(
+            title: Text('App ID: ${item.appid}'),
+            subtitle: Text('View ID: ${item.viewid}'),
+            trailing: Switch(
+              value: item.enabled,
+              onChanged: (value) async {
+                widget.store.updateItem(
                   index,
                   ListItem(
                     appid: item.appid,
@@ -127,8 +123,9 @@ class _ListScreenState extends State<ListScreen> {
                     enabled: value,
                   ),
                 );
-              });
-            },
+                setState(() {});
+              },
+            ),
           ),
         );
       },
@@ -145,10 +142,9 @@ class _ListScreenState extends State<ListScreen> {
             context,
             MaterialPageRoute(
               builder: (context) => AddItemScreen(
-                onAdd: (newItem) {
-                  setState(() {
-                    store.addItem(newItem);
-                  });
+                onAdd: (newItem) async {
+                  await widget.store.addItem(newItem);
+                  setState(() {});
                 },
               ),
             ),
@@ -168,7 +164,9 @@ class MainApp extends StatelessWidget {
     return MaterialApp(
       home: Scaffold(
         appBar: AppBar(title: const Text('List Manager')),
-        body: ListScreen(),
+        body: ListScreen(
+          store: InMemoryStore(SharedPreferencesAsync(options: options)),
+        ),
       ),
     );
   }
