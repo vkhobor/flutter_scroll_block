@@ -1,33 +1,16 @@
-package com.vishal2376.scrollblock.services
+package com.example.flutter_scroll_block
 
 import android.accessibilityservice.AccessibilityService
-import android.app.Service
 import android.view.accessibility.AccessibilityEvent
 import android.widget.Toast
-import com.vishal2376.scrollblock.data.local.AppUsageDao
-import com.vishal2376.scrollblock.data.local.SummaryDao
-import com.vishal2376.scrollblock.domain.model.AppUsage
-import com.vishal2376.scrollblock.utils.NOTIFICATION_ID
-import com.vishal2376.scrollblock.utils.NotificationHelper
-import com.vishal2376.scrollblock.utils.SettingsStore
-import com.vishal2376.scrollblock.utils.SupportedApps
-import dagger.hilt.android.AndroidEntryPoint
 import java.time.LocalTime
-import javax.inject.Inject
 import kotlin.math.max
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.Job
-import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.launch
 
-@AndroidEntryPoint
 class ScrollAccessibility : AccessibilityService() {
-    @Inject lateinit var appUsageDao: AppUsageDao
+    private val appUsageList = mutableListOf<Map<String, Any>>()
 
-    @Inject lateinit var summaryDao: SummaryDao
-
-    @Inject lateinit var store: SettingsStore
+    private var appStatus =
+            mapOf("Instagram" to true, "Youtube" to true, "Linkedin" to true, "Snapchat" to true)
 
     private var isInstagramDisabled = true
     private var isYoutubeDisabled = true
@@ -38,16 +21,6 @@ class ScrollAccessibility : AccessibilityService() {
         private const val MIN_VALID_SCROLL_COUNT = 3
         private const val MIN_VALID_TIME_SPENT = 5
     }
-
-    private var appStatus =
-            mapOf(
-                    SupportedApps.Instagram to isInstagramDisabled,
-                    SupportedApps.Youtube to isYoutubeDisabled,
-                    SupportedApps.YoutubeRevanced to isYoutubeDisabled,
-                    SupportedApps.YoutubeRevancedExtended to isYoutubeDisabled,
-                    SupportedApps.Linkedin to isLinkedinDisabled,
-                    SupportedApps.Snapchat to isSnapchatDisabled
-            )
 
     private var currentIndex = 0
     private var startTime = 0
@@ -60,22 +33,39 @@ class ScrollAccessibility : AccessibilityService() {
     private var appOpenCount = 0
     private var appScrollBlocked = 0
 
-    private val serviceScope = CoroutineScope(Dispatchers.IO + Job())
-    private val supportedApps =
-            listOf(
-                    SupportedApps.Instagram,
-                    SupportedApps.Youtube,
-                    SupportedApps.Linkedin,
-                    SupportedApps.YoutubeRevanced,
-                    SupportedApps.YoutubeRevancedExtended,
-                    SupportedApps.Snapchat
-            )
+    private val supportedApps = listOf("Instagram", "Youtube", "Linkedin", "Snapchat")
 
     override fun onServiceConnected() {
         super.onServiceConnected()
 
-        val notificationHelper = NotificationHelper(this@ScrollAccessibility)
-        startForeground(NOTIFICATION_ID, notificationHelper.buildNotification())
+        // Create a notification channel (required for Android 8.0+)
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+            val channelId = "scroll_accessibility_service"
+            val channelName = "Scroll Accessibility Service"
+            val channel =
+                    android.app.NotificationChannel(
+                            channelId,
+                            channelName,
+                            android.app.NotificationManager.IMPORTANCE_LOW
+                    )
+            val notificationManager =
+                    getSystemService(android.content.Context.NOTIFICATION_SERVICE) as
+                            android.app.NotificationManager
+            notificationManager.createNotificationChannel(channel)
+        }
+
+        // Build the notification
+        val notification =
+                android.app.Notification.Builder(this, "scroll_accessibility_service")
+                        .setContentTitle("Scroll Accessibility Service")
+                        .setContentText("Service is running")
+                        .setSmallIcon(
+                                android.R.drawable.ic_dialog_info
+                        ) // Ensure a valid small icon is set
+                        .build()
+
+        // Start the service in the foreground
+        startForeground(1, notification)
     }
 
     override fun onAccessibilityEvent(event: AccessibilityEvent?) {
@@ -83,18 +73,14 @@ class ScrollAccessibility : AccessibilityService() {
             // Detect Window Changes
             if (event.eventType == AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED) {
 
-                serviceScope.launch {
-                    appStatus =
-                            mapOf(
-                                    SupportedApps.Instagram to store.instagramKey.first(),
-                                    SupportedApps.Youtube to store.youtubeKey.first(),
-                                    SupportedApps.YoutubeRevanced to store.youtubeKey.first(),
-                                    SupportedApps.YoutubeRevancedExtended to
-                                            store.youtubeKey.first(),
-                                    SupportedApps.Linkedin to store.linkedinKey.first(),
-                                    SupportedApps.Snapchat to store.snapchatKey.first()
-                            )
-                }
+                // Update app status in memory
+                appStatus =
+                        mapOf(
+                                "Instagram" to isInstagramDisabled,
+                                "Youtube" to isYoutubeDisabled,
+                                "Linkedin" to isLinkedinDisabled,
+                                "Snapchat" to isSnapchatDisabled
+                        )
 
                 if (isValidAppUsage()) {
                     // Calculate App Usage
@@ -108,11 +94,11 @@ class ScrollAccessibility : AccessibilityService() {
             }
 
             supportedApps.forEach {
-                if (event.packageName == it.packageName) {
-                    appPackageName = it.packageName
+                if (event.packageName == it) {
+                    appPackageName = it
 
                     // Detect targeted content
-                    val viewId = "${it.packageName}:id/${it.blockId}"
+                    val viewId = "${it}:id/${getBlockIdForApp(it)}"
                     val blockContent =
                             rootInActiveWindow?.findAccessibilityNodeInfosByViewId(viewId)
 
@@ -162,18 +148,27 @@ class ScrollAccessibility : AccessibilityService() {
     private fun saveAppUsage() {
 
         val appUsage =
-                AppUsage(
-                        packageName = appPackageName,
-                        scrollCount = appScrollCount,
-                        timeSpent = appTimeSpent,
-                        appOpenCount = appOpenCount,
-                        scrollsBlocked = appScrollBlocked
+                mapOf(
+                        "packageName" to appPackageName,
+                        "scrollCount" to appScrollCount,
+                        "timeSpent" to appTimeSpent,
+                        "appOpenCount" to appOpenCount,
+                        "scrollsBlocked" to appScrollBlocked
                 )
 
-        serviceScope.launch {
-            appUsageDao.insertAppUsage(appUsage)
-            resetAppUsage()
-        }
+        appUsageList.add(appUsage)
+        resetAppUsage()
+    }
+
+    private fun getBlockIdForApp(packageName: String): String {
+        val blockIdMap =
+                mapOf(
+                        "Instagram" to "instagram_block_id",
+                        "Youtube" to "youtube_block_id",
+                        "Linkedin" to "linkedin_block_id",
+                        "Snapchat" to "snapchat_block_id"
+                )
+        return blockIdMap[packageName] ?: "default_block_id"
     }
 
     private fun resetAppUsage() {
@@ -188,11 +183,11 @@ class ScrollAccessibility : AccessibilityService() {
     }
 
     override fun onInterrupt() {
-        stopForeground(Service.STOP_FOREGROUND_REMOVE)
+        stopForeground(true)
     }
 
     override fun onDestroy() {
         super.onDestroy()
-        stopForeground(Service.STOP_FOREGROUND_REMOVE)
+        stopForeground(true)
     }
 }
