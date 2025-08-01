@@ -3,16 +3,20 @@ package com.example.flutter_scroll_block
 import org.json.JSONArray
 import org.json.JSONObject
 
-class SettingsStore(private val sharedPreferences: android.content.SharedPreferences) {
+class SettingsStore(
+        private val sharedPreferences: android.content.SharedPreferences,
+        private val onItemsChanged: (() -> Unit)? = null
+) {
 
     companion object {
         private const val TAG = "SettingsStore"
     }
 
-    private val _items: MutableMap<String, ListItem> = mutableMapOf()
+    private val _items: MutableMap<String, MutableList<ListItem>> = mutableMapOf()
 
-    val items: Map<String, ListItem>
-        get() = _items.toMap()
+    public fun getItemsForPackageId(packageId: String): List<ListItem> {
+        return _items[packageId] ?: emptyList()
+    }
 
     private val preferenceChangeListener =
             android.content.SharedPreferences.OnSharedPreferenceChangeListener { _, key ->
@@ -20,6 +24,7 @@ class SettingsStore(private val sharedPreferences: android.content.SharedPrefere
                 when (key) {
                     "list_items" -> {
                         load()
+                        onItemsChanged?.invoke()
                     }
                 }
             }
@@ -30,6 +35,7 @@ class SettingsStore(private val sharedPreferences: android.content.SharedPrefere
             sharedPreferences.registerOnSharedPreferenceChangeListener(preferenceChangeListener)
             isListening = true
             load()
+            onItemsChanged?.invoke()
         }
     }
 
@@ -38,6 +44,36 @@ class SettingsStore(private val sharedPreferences: android.content.SharedPrefere
             sharedPreferences.unregisterOnSharedPreferenceChangeListener(preferenceChangeListener)
             isListening = false
         }
+    }
+
+    public fun setAllOff() {
+        _items.forEach { (_, items) ->
+            for (i in items.indices) {
+                items[i] = items[i].copy(enabled = false)
+            }
+        }
+        save()
+        onItemsChanged?.invoke()
+    }
+
+    public fun setAllOn() {
+        _items.forEach { (_, items) ->
+            for (i in items.indices) {
+                items[i] = items[i].copy(enabled = true)
+            }
+        }
+        save()
+        onItemsChanged?.invoke()
+    }
+
+    private fun save() {
+        val jsonArray = JSONArray()
+        _items.values.forEach { items -> items.forEach { item -> jsonArray.put(item.toJson()) } }
+        sharedPreferences.edit().putString("list_items", jsonArray.toString()).apply()
+    }
+
+    public fun isAnyOn(): Boolean {
+        return _items.values.any { it.any { it.enabled } }
     }
 
     public fun load() {
@@ -49,7 +85,12 @@ class SettingsStore(private val sharedPreferences: android.content.SharedPrefere
             val jsonObject = jsonArray.getJSONObject(i)
             val item = ListItem.fromJson(jsonObject)
             android.util.Log.d(TAG, "Adding: $item")
-            _items[item.appid] = item
+
+            if (_items.containsKey(item.appid)) {
+                _items[item.appid]!!.add(item)
+            } else {
+                _items[item.appid] = mutableListOf(item)
+            }
         }
     }
 }
@@ -63,5 +104,13 @@ data class ListItem(val appid: String, val viewid: String, val enabled: Boolean)
                     enabled = jsonObject.getBoolean("enabled")
             )
         }
+    }
+
+    fun toJson(): JSONObject {
+        val jsonObject = JSONObject()
+        jsonObject.put("appid", appid)
+        jsonObject.put("viewid", viewid)
+        jsonObject.put("enabled", enabled)
+        return jsonObject
     }
 }

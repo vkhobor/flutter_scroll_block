@@ -42,6 +42,20 @@ class InMemoryStore {
     await _saveToPreferences();
   }
 
+  Future<void> disableAll() async {
+    for (var item in _items) {
+      item.enabled = false;
+    }
+    await _saveToPreferences();
+  }
+
+  Future<void> enableAll() async {
+    for (var item in _items) {
+      item.enabled = true;
+    }
+    await _saveToPreferences();
+  }
+
   Future<void> deleteItem(int index) async {
     if (index >= 0 && index < _items.length) {
       _items.removeAt(index);

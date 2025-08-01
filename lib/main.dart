@@ -97,8 +97,10 @@ class _ListScreenState extends State<ListScreen> {
           key: Key(item.appid),
           direction: DismissDirection.endToStart,
           onDismissed: (direction) async {
-            await widget.store.deleteItem(index);
+            // HACK: it removes it optimistically anyway, and async gap happens on await
+            final future = widget.store.deleteItem(index);
             setState(() {});
+            await future;
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(content: Text('Item ${item.appid} deleted')),
             );
