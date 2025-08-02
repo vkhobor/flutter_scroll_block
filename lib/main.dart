@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_scroll_block/edit_item_screen.dart';
 import 'package:flutter_scroll_block/settings_store.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:shared_preferences_android/shared_preferences_android.dart';
@@ -22,6 +23,8 @@ class _AddItemScreenState extends State<AddItemScreen> {
   final TextEditingController appidController = TextEditingController();
   final TextEditingController viewidController = TextEditingController();
 
+  bool usePolling = false;
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -38,6 +41,20 @@ class _AddItemScreenState extends State<AddItemScreen> {
               controller: viewidController,
               decoration: const InputDecoration(labelText: 'View ID'),
             ),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Text('Use Polling'),
+                Switch(
+                  value: usePolling,
+                  onChanged: (value) {
+                    setState(() {
+                      usePolling = value;
+                    });
+                  },
+                ),
+              ],
+            ),
             const SizedBox(height: 20),
             ElevatedButton(
               onPressed: () {
@@ -45,6 +62,7 @@ class _AddItemScreenState extends State<AddItemScreen> {
                   appid: appidController.text,
                   viewid: viewidController.text,
                   enabled: true,
+                  usePolling: usePolling,
                 );
                 widget.onAdd(newItem);
                 Navigator.pop(context);
@@ -63,7 +81,7 @@ void main() {
 }
 
 class ListScreen extends StatefulWidget {
-  final InMemoryStore store;
+  final SettingStore store;
 
   ListScreen({required this.store});
 
@@ -78,9 +96,21 @@ class _ListScreenState extends State<ListScreen> {
     _initializeData();
   }
 
+  late VoidCallback listener;
+
   Future<void> _initializeData() async {
+    listener = () {
+      setState(() {});
+    };
+    widget.store.addListener(listener);
+
     await widget.store.init();
-    setState(() {});
+  }
+
+  @override
+  void dispose() {
+    widget.store.removeListener(listener);
+    super.dispose();
   }
 
   @override
@@ -97,7 +127,7 @@ class _ListScreenState extends State<ListScreen> {
           key: Key(item.appid),
           direction: DismissDirection.endToStart,
           onDismissed: (direction) async {
-            // HACK: it removes it optimistically anyway, and async gap happens on await
+            // HACK: it removes it optimistically anyway, and async gap happens on await otherwise can cause ui glitches
             final future = widget.store.deleteItem(index);
             setState(() {});
             await future;
@@ -128,6 +158,19 @@ class _ListScreenState extends State<ListScreen> {
                 setState(() {});
               },
             ),
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => EditItemScreen(
+                    item: item,
+                    onEdit: (updatedItem) async {
+                      widget.store.updateItem(index, updatedItem);
+                    },
+                  ),
+                ),
+              );
+            },
           ),
         );
       },
@@ -158,17 +201,28 @@ class _ListScreenState extends State<ListScreen> {
   }
 }
 
-class MainApp extends StatelessWidget {
+class MainApp extends StatefulWidget {
   const MainApp({super.key});
+
+  @override
+  State<MainApp> createState() => _MainAppState();
+}
+
+class _MainAppState extends State<MainApp> {
+  late SettingStore settings;
+
+  @override
+  void initState() {
+    super.initState();
+    settings = SettingStore(SharedPreferencesAsync(options: options));
+  }
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
       home: Scaffold(
         appBar: AppBar(title: const Text('List Manager')),
-        body: ListScreen(
-          store: InMemoryStore(SharedPreferencesAsync(options: options)),
-        ),
+        body: ListScreen(store: settings),
       ),
     );
   }

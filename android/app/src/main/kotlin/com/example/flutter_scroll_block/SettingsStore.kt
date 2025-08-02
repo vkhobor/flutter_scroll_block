@@ -1,5 +1,6 @@
 package com.example.flutter_scroll_block
 
+import io.flutter.plugin.common.MethodChannel
 import org.json.JSONArray
 import org.json.JSONObject
 
@@ -12,10 +13,31 @@ class SettingsStore(
         private const val TAG = "SettingsStore"
     }
 
+    private var methodChannel: MethodChannel? = null
     private val _items: MutableMap<String, MutableList<ListItem>> = mutableMapOf()
 
     public fun getItemsForPackageId(packageId: String): List<ListItem> {
         return _items[packageId] ?: emptyList()
+    }
+
+    private fun onItemsChanged() {
+        onItemsChanged?.invoke()
+        invokeFlutterMethodChannel()
+    }
+
+    private fun invokeFlutterMethodChannel() {
+        if (methodChannel != null) {
+            methodChannel!!.invokeMethod(Channels.Settings.ON_CHANGE_METHOD, null)
+        } else {
+            if (MainActivity.cachedFlutterEngine != null) {
+                methodChannel =
+                        MethodChannel(
+                                MainActivity.cachedFlutterEngine!!.dartExecutor.binaryMessenger,
+                                Channels.Settings.CHANNEL_NAME
+                        )
+                methodChannel!!.invokeMethod(Channels.Settings.ON_CHANGE_METHOD, null)
+            }
+        }
     }
 
     private val preferenceChangeListener =
@@ -24,7 +46,7 @@ class SettingsStore(
                 when (key) {
                     "list_items" -> {
                         load()
-                        onItemsChanged?.invoke()
+                        onItemsChanged()
                     }
                 }
             }
@@ -35,7 +57,7 @@ class SettingsStore(
             sharedPreferences.registerOnSharedPreferenceChangeListener(preferenceChangeListener)
             isListening = true
             load()
-            onItemsChanged?.invoke()
+            onItemsChanged()
         }
     }
 
@@ -53,7 +75,7 @@ class SettingsStore(
             }
         }
         save()
-        onItemsChanged?.invoke()
+        onItemsChanged()
     }
 
     public fun setAllOn() {
@@ -63,7 +85,7 @@ class SettingsStore(
             }
         }
         save()
-        onItemsChanged?.invoke()
+        onItemsChanged()
     }
 
     private fun save() {
@@ -95,13 +117,19 @@ class SettingsStore(
     }
 }
 
-data class ListItem(val appid: String, val viewid: String, val enabled: Boolean) {
+data class ListItem(
+        val appid: String,
+        val viewid: String,
+        val enabled: Boolean,
+        val usePolling: Boolean
+) {
     companion object {
         fun fromJson(jsonObject: JSONObject): ListItem {
             return ListItem(
                     appid = jsonObject.getString("appid"),
                     viewid = jsonObject.getString("viewid"),
-                    enabled = jsonObject.getBoolean("enabled")
+                    enabled = jsonObject.getBoolean("enabled"),
+                    usePolling = jsonObject.getBoolean("usePolling")
             )
         }
     }
@@ -111,6 +139,7 @@ data class ListItem(val appid: String, val viewid: String, val enabled: Boolean)
         jsonObject.put("appid", appid)
         jsonObject.put("viewid", viewid)
         jsonObject.put("enabled", enabled)
+        jsonObject.put("usePolling", usePolling)
         return jsonObject
     }
 }
