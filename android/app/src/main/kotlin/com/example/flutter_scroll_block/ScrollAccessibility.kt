@@ -116,6 +116,14 @@ class ScrollAccessibility : AccessibilityService() {
                 isFirstPoll = true
                 return
             }
+            
+            // Check if immediate blocking is enabled for this screen
+            if (screenDetector.shouldBlockImmediately()) {
+                poller.stop()
+                block()
+                return
+            }
+            
             if (currentScreenId != screenDetector.getScreen()) {
                 previousScreen = null
                 isFirstPoll = true

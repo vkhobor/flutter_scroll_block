@@ -15,12 +15,16 @@ class EditItemScreen extends StatefulWidget {
 class _EditItemScreenState extends State<EditItemScreen> {
   late TextEditingController appidController;
   late TextEditingController viewidController;
+  late bool usePolling;
+  late bool immediateBlock;
 
   @override
   void initState() {
     super.initState();
     appidController = TextEditingController(text: widget.item.appid);
     viewidController = TextEditingController(text: widget.item.viewid);
+    usePolling = widget.item.usePolling;
+    immediateBlock = widget.item.immediateBlock;
   }
 
   @override
@@ -51,10 +55,24 @@ class _EditItemScreenState extends State<EditItemScreen> {
               children: [
                 const Text('Use Polling'),
                 Switch(
-                  value: widget.item.usePolling,
+                  value: usePolling,
                   onChanged: (value) {
                     setState(() {
-                      widget.item.usePolling = value;
+                      usePolling = value;
+                    });
+                  },
+                ),
+              ],
+            ),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Text('Immediate Block'),
+                Switch(
+                  value: immediateBlock,
+                  onChanged: (value) {
+                    setState(() {
+                      immediateBlock = value;
                     });
                   },
                 ),
@@ -68,7 +86,8 @@ class _EditItemScreenState extends State<EditItemScreen> {
                   appid: appidController.text,
                   viewid: viewidController.text,
                   enabled: widget.item.enabled,
-                  usePolling: widget.item.usePolling,
+                  usePolling: usePolling,
+                  immediateBlock: immediateBlock,
                 );
                 widget.onEdit(updatedItem);
                 Navigator.pop(context);
