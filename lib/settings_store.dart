@@ -96,12 +96,14 @@ class ListItem {
   String viewid;
   bool enabled;
   bool usePolling;
+  bool immediateBlock;
 
   ListItem({
     required this.appid,
     required this.viewid,
     this.enabled = true,
     this.usePolling = false,
+    this.immediateBlock = false,
   });
 
   Map<String, dynamic> toJson() {
@@ -110,6 +112,7 @@ class ListItem {
       'viewid': viewid,
       'enabled': enabled,
       'usePolling': usePolling,
+      'immediateBlock': immediateBlock,
     };
   }
 
@@ -119,6 +122,7 @@ class ListItem {
       viewid: json['viewid'],
       enabled: json['enabled'],
       usePolling: json['usePolling'] ?? false,
+      immediateBlock: json['immediateBlock'] ?? false,
     );
   }
 }

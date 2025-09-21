@@ -60,6 +60,20 @@ class _EditItemScreenState extends State<EditItemScreen> {
                 ),
               ],
             ),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Text('Immediate Block'),
+                Switch(
+                  value: widget.item.immediateBlock,
+                  onChanged: (value) {
+                    setState(() {
+                      widget.item.immediateBlock = value;
+                    });
+                  },
+                ),
+              ],
+            ),
 
             const SizedBox(height: 20),
             ElevatedButton(
@@ -69,6 +83,7 @@ class _EditItemScreenState extends State<EditItemScreen> {
                   viewid: viewidController.text,
                   enabled: widget.item.enabled,
                   usePolling: widget.item.usePolling,
+                  immediateBlock: widget.item.immediateBlock,
                 );
                 widget.onEdit(updatedItem);
                 Navigator.pop(context);

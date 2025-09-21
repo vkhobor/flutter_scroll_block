@@ -90,7 +90,9 @@ class ScrollAccessibility : AccessibilityService() {
     }
 
     fun block() {
-        if (!isAfterBootDelay()) return
+        val hasImmediateBlock = settingsStore.hasImmediateBlockForPackage(currentPackageId)
+        
+        if (!hasImmediateBlock && !isAfterBootDelay()) return
 
         throttler.throttle {
             performGlobalAction(GLOBAL_ACTION_BACK)

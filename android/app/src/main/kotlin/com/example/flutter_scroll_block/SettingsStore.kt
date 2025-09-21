@@ -98,6 +98,10 @@ class SettingsStore(
         return _items.values.any { it.any { it.enabled } }
     }
 
+    public fun hasImmediateBlockForPackage(packageId: String): Boolean {
+        return _items[packageId]?.any { it.enabled && it.immediateBlock } ?: false
+    }
+
     public fun load() {
         _items.clear()
         val jsonString = sharedPreferences.getString("list_items", "[]") ?: "[]"
@@ -121,7 +125,8 @@ data class ListItem(
         val appid: String,
         val viewid: String,
         val enabled: Boolean,
-        val usePolling: Boolean
+        val usePolling: Boolean,
+        val immediateBlock: Boolean
 ) {
     companion object {
         fun fromJson(jsonObject: JSONObject): ListItem {
@@ -129,7 +134,8 @@ data class ListItem(
                     appid = jsonObject.getString("appid"),
                     viewid = jsonObject.getString("viewid"),
                     enabled = jsonObject.getBoolean("enabled"),
-                    usePolling = jsonObject.getBoolean("usePolling")
+                    usePolling = jsonObject.getBoolean("usePolling"),
+                    immediateBlock = jsonObject.optBoolean("immediateBlock", false)
             )
         }
     }
@@ -140,6 +146,7 @@ data class ListItem(
         jsonObject.put("viewid", viewid)
         jsonObject.put("enabled", enabled)
         jsonObject.put("usePolling", usePolling)
+        jsonObject.put("immediateBlock", immediateBlock)
         return jsonObject
     }
 }

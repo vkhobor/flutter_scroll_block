@@ -24,6 +24,7 @@ class _AddItemScreenState extends State<AddItemScreen> {
   final TextEditingController viewidController = TextEditingController();
 
   bool usePolling = false;
+  bool immediateBlock = false;
 
   @override
   Widget build(BuildContext context) {
@@ -55,6 +56,20 @@ class _AddItemScreenState extends State<AddItemScreen> {
                 ),
               ],
             ),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Text('Immediate Block'),
+                Switch(
+                  value: immediateBlock,
+                  onChanged: (value) {
+                    setState(() {
+                      immediateBlock = value;
+                    });
+                  },
+                ),
+              ],
+            ),
             const SizedBox(height: 20),
             ElevatedButton(
               onPressed: () {
@@ -63,6 +78,7 @@ class _AddItemScreenState extends State<AddItemScreen> {
                   viewid: viewidController.text,
                   enabled: true,
                   usePolling: usePolling,
+                  immediateBlock: immediateBlock,
                 );
                 widget.onAdd(newItem);
                 Navigator.pop(context);
@@ -154,6 +170,7 @@ class _ListScreenState extends State<ListScreen> {
                     viewid: item.viewid,
                     enabled: value,
                     usePolling: item.usePolling,
+                    immediateBlock: item.immediateBlock,
                   ),
                 );
                 setState(() {});
