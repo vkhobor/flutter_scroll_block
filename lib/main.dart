@@ -153,6 +153,7 @@ class _ListScreenState extends State<ListScreen> {
                     appid: item.appid,
                     viewid: item.viewid,
                     enabled: value,
+                    usePolling: item.usePolling,
                   ),
                 );
                 setState(() {});

@@ -118,7 +118,7 @@ class ListItem {
       appid: json['appid'],
       viewid: json['viewid'],
       enabled: json['enabled'],
-      usePolling: false,
+      usePolling: json['usePolling'] ?? false,
     );
   }
 }
