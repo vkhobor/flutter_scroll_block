@@ -34,6 +34,18 @@ class SettingStore extends ChangeNotifier {
     setupChannel();
   }
 
+  Future<String> exportToJson() async {
+    return json.encode(_items.map((item) => item.toJson()).toList());
+  }
+
+  Future<void> importFromJson(String jsonString) async {
+    final List<dynamic> jsonList = json.decode(jsonString);
+    _items.clear();
+    _items.addAll(jsonList.map((item) => ListItem.fromJson(item)));
+    await _saveToPreferences();
+    notifyListeners();
+  }
+
   Future<void> _loadFromPreferences() async {
     final String? jsonString = await prefs.getString(storageKey);
     if (jsonString != null) {
@@ -96,12 +108,14 @@ class ListItem {
   String viewid;
   bool enabled;
   bool usePolling;
+  bool immediatelyBlock;
 
   ListItem({
     required this.appid,
     required this.viewid,
     this.enabled = true,
     this.usePolling = false,
+    this.immediatelyBlock = false,
   });
 
   Map<String, dynamic> toJson() {
@@ -110,6 +124,7 @@ class ListItem {
       'viewid': viewid,
       'enabled': enabled,
       'usePolling': usePolling,
+      'immediatelyBlock': immediatelyBlock,
     };
   }
 
@@ -118,7 +133,8 @@ class ListItem {
       appid: json['appid'],
       viewid: json['viewid'],
       enabled: json['enabled'],
-      usePolling: json['usePolling'] ?? false,
+      usePolling: json['usePolling'],
+      immediatelyBlock: json['immediatelyBlock'],
     );
   }
 }

@@ -8,6 +8,7 @@ class ScreenDetector(
         private val accessibilityService: AccessibilityService
 ) : AccessibilityDetector {
     private var screen: String? = null
+    private var lastSetting: ListItem? = null
 
     override fun onAccessibilityEvent(event: AccessibilityEvent): Boolean {
         val items = settings.getItemsForPackageId(event.packageName.toString())
@@ -21,6 +22,7 @@ class ScreenDetector(
 
             if (blockContent != null && blockContent.isNotEmpty()) {
                 screen = setting.viewid
+                lastSetting = setting
                 return true
             }
         }
@@ -30,5 +32,9 @@ class ScreenDetector(
 
     public fun getScreen(): String {
         return screen ?: ""
+    }
+
+    public fun getSetting(): ListItem? {
+        return lastSetting
     }
 }

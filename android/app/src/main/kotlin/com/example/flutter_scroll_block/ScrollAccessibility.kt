@@ -122,6 +122,12 @@ class ScrollAccessibility : AccessibilityService() {
             }
             poller.start()
 
+            val setting = screenDetector.getSetting()
+            if(setting!!.immediatelyBlock) {
+                poller.stop()
+                block()
+            }
+
             if (!scrollDetector.onAccessibilityEvent(event)) return
 
             poller.stop()

@@ -1,39 +1,26 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_scroll_block/settings_store.dart';
 
-class EditItemScreen extends StatefulWidget {
-  final ListItem item;
-  final Function(ListItem) onEdit;
+class AddItemScreen extends StatefulWidget {
+  final Function(ListItem) onAdd;
 
-  EditItemScreen({Key? key, required this.item, required this.onEdit})
-    : super(key: key);
+  const AddItemScreen({Key? key, required this.onAdd}) : super(key: key);
 
   @override
-  _EditItemScreenState createState() => _EditItemScreenState();
+  _AddItemScreenState createState() => _AddItemScreenState();
 }
 
-class _EditItemScreenState extends State<EditItemScreen> {
-  late TextEditingController appidController;
-  late TextEditingController viewidController;
+class _AddItemScreenState extends State<AddItemScreen> {
+  final TextEditingController appidController = TextEditingController();
+  final TextEditingController viewidController = TextEditingController();
 
-  @override
-  void initState() {
-    super.initState();
-    appidController = TextEditingController(text: widget.item.appid);
-    viewidController = TextEditingController(text: widget.item.viewid);
-  }
-
-  @override
-  void dispose() {
-    appidController.dispose();
-    viewidController.dispose();
-    super.dispose();
-  }
+  bool usePolling = false;
+  bool immediatelyBlock = false;
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Edit Item')),
+      appBar: AppBar(title: const Text('Add New Item')),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
         child: Column(
@@ -51,10 +38,10 @@ class _EditItemScreenState extends State<EditItemScreen> {
               children: [
                 const Text('Use Polling'),
                 Switch(
-                  value: widget.item.usePolling,
+                  value: usePolling,
                   onChanged: (value) {
                     setState(() {
-                      widget.item.usePolling = value;
+                      usePolling = value;
                     });
                   },
                 ),
@@ -65,30 +52,29 @@ class _EditItemScreenState extends State<EditItemScreen> {
               children: [
                 const Text('Immediately Block'),
                 Switch(
-                  value: widget.item.immediatelyBlock,
+                  value: immediatelyBlock,
                   onChanged: (value) {
                     setState(() {
-                      widget.item.immediatelyBlock = value;
+                      immediatelyBlock = value;
                     });
                   },
                 ),
               ],
             ),
-
             const SizedBox(height: 20),
             ElevatedButton(
               onPressed: () {
-                final updatedItem = ListItem(
+                final newItem = ListItem(
                   appid: appidController.text,
                   viewid: viewidController.text,
-                  enabled: widget.item.enabled,
-                  usePolling: widget.item.usePolling,
-                  immediatelyBlock: widget.item.immediatelyBlock,
+                  enabled: true,
+                  usePolling: usePolling,
+                  immediatelyBlock: immediatelyBlock,
                 );
-                widget.onEdit(updatedItem);
+                widget.onAdd(newItem);
                 Navigator.pop(context);
               },
-              child: const Text('Save Changes'),
+              child: const Text('Add Item'),
             ),
           ],
         ),
